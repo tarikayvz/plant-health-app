@@ -1,10 +1,10 @@
 const express = require("express")
 const router = express.Router()
 const deviceController = require("../controllers/deviceController")
-const { authenticate } = require("../middleware/auth")
+// const { authenticate } = require("../middleware/auth")
 const { validateDeviceCreate } = require("../middleware/validators")
 
-router.use(authenticate)
+// router.use(authenticate)
 
 router.get("/get-All-Devices", deviceController.getAllDevices)
 router.post("/create-device", validateDeviceCreate, deviceController.createDevice)

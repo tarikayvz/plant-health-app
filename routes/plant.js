@@ -1,10 +1,10 @@
 const express = require("express")
 const router = express.Router()
 const plantController = require("../controllers/plantController")
-const { authenticate } = require("../middleware/auth")
+// const { authenticate } = require("../middleware/auth")
 const { validatePlantCreate } = require("../middleware/validators")
 
-router.use(authenticate)
+// router.use(authenticate)
 
 router.get("/types", plantController.getAllPlantTypes)
 

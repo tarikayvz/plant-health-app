@@ -1,6 +1,6 @@
 const express = require("express")
 const router = express.Router()
-const { authenticate } = require("../middleware/auth")
+// const { authenticate } = require("../middleware/auth")
 const deviceController = require("../controllers/deviceController")
 const plantController = require("../controllers/plantController")
 const moistureController = require("../controllers/moistureController")
