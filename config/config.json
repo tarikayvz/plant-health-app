@@ -4,13 +4,15 @@
     "password": "Tbfb.1907",
     "database": "lant-health",
     "host": "localhost",
+    "port": 3000,
     "dialect": "postgres"
   },
   "test": {
     "username": "postgres",
     "password": "Tbfb.1907",
-    "database": "lant-health",
+    "database": "plant-health",
     "host": "localhost",
+    "port": 3000,
     "dialect": "postgres"
   },
   "production": {
