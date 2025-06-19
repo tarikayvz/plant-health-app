@@ -25,7 +25,7 @@ exports.getAllDevices = async (req, res, next) => {
 
 exports.createDevice = async (req, res, next) => {
   try {
-    const userId = req.user.id
+    
     const { name, deviceIdentifier, location, moistureThreshold, autoWatering } = req.body
 
     // Check if device already exists
@@ -36,7 +36,7 @@ exports.createDevice = async (req, res, next) => {
 
     // Create new device
     const device = await Device.create({
-      userId,
+      
       name,
       deviceIdentifier,
       location,
