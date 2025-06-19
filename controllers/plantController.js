@@ -1,12 +1,10 @@
-const { Plant, PlantType, WateringHistory, HealthHistory, MoistureReading, Device } = require("../models")
+const { Plant, PlantType, WateringHistory, HealthHistory, MoistureReading, Device, User } = require("../models")
 const { Op } = require("sequelize")
 
 exports.getAllPlants = async (req, res, next) => {
   try {
-    const userId = req.user.id
-
+    // Tüm bitkileri getir - authentication yok
     const plants = await Plant.findAll({
-      where: { userId },
       include: [
         {
           model: PlantType,
@@ -15,6 +13,10 @@ exports.getAllPlants = async (req, res, next) => {
         {
           model: Device,
           attributes: ["id", "name", "location"],
+        },
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
         },
       ],
     })
@@ -30,13 +32,15 @@ exports.getAllPlants = async (req, res, next) => {
 
 exports.createPlant = async (req, res, next) => {
   try {
-    const userId = req.user.id
-    const { name, deviceId, plantTypeId, plantedDate, notes, imageUrl } = req.body
+    const { name, deviceId, plantTypeId, plantedDate, notes, imageUrl, userId } = req.body
 
-    // Check if device exists and belongs to user
-    const device = await Device.findOne({ where: { id: deviceId, userId } })
+    // Default user ID kullan
+    const plantUserId = userId || 1
+
+    // Check if device exists
+    const device = await Device.findOne({ where: { id: deviceId } })
     if (!device) {
-      return res.status(404).json({ message: "Device not found or does not belong to user" })
+      return res.status(404).json({ message: "Device not found" })
     }
 
     // Check if plant type exists
@@ -47,7 +51,7 @@ exports.createPlant = async (req, res, next) => {
 
     // Create new plant
     const plant = await Plant.create({
-      userId,
+      userId: plantUserId,
       deviceId,
       plantTypeId,
       name,
@@ -68,6 +72,10 @@ exports.createPlant = async (req, res, next) => {
           model: Device,
           attributes: ["id", "name", "location"],
         },
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
+        },
       ],
     })
 
@@ -82,11 +90,10 @@ exports.createPlant = async (req, res, next) => {
 
 exports.getPlantById = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
 
     const plant = await Plant.findOne({
-      where: { id, userId },
+      where: { id },
       include: [
         {
           model: PlantType,
@@ -103,6 +110,10 @@ exports.getPlantById = async (req, res, next) => {
         {
           model: Device,
           attributes: ["id", "name", "location", "autoWatering", "moistureThreshold"],
+        },
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
         },
       ],
     })
@@ -122,21 +133,20 @@ exports.getPlantById = async (req, res, next) => {
 
 exports.updatePlant = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
     const { name, deviceId, plantTypeId, notes, imageUrl } = req.body
 
-    const plant = await Plant.findOne({ where: { id, userId } })
+    const plant = await Plant.findOne({ where: { id } })
 
     if (!plant) {
       return res.status(404).json({ message: "Plant not found" })
     }
 
-    // If deviceId is provided, check if it exists and belongs to user
+    // If deviceId is provided, check if it exists
     if (deviceId) {
-      const device = await Device.findOne({ where: { id: deviceId, userId } })
+      const device = await Device.findOne({ where: { id: deviceId } })
       if (!device) {
-        return res.status(404).json({ message: "Device not found or does not belong to user" })
+        return res.status(404).json({ message: "Device not found" })
       }
     }
 
@@ -168,6 +178,10 @@ exports.updatePlant = async (req, res, next) => {
           model: Device,
           attributes: ["id", "name", "location"],
         },
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
+        },
       ],
     })
 
@@ -182,10 +196,9 @@ exports.updatePlant = async (req, res, next) => {
 
 exports.deletePlant = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
 
-    const plant = await Plant.findOne({ where: { id, userId } })
+    const plant = await Plant.findOne({ where: { id } })
 
     if (!plant) {
       return res.status(404).json({ message: "Plant not found" })
@@ -204,12 +217,11 @@ exports.deletePlant = async (req, res, next) => {
 
 exports.getWateringHistory = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
     const { limit = 10, offset = 0 } = req.query
 
-    // Check if plant exists and belongs to user
-    const plant = await Plant.findOne({ where: { id, userId } })
+    // Check if plant exists
+    const plant = await Plant.findOne({ where: { id } })
     if (!plant) {
       return res.status(404).json({ message: "Plant not found" })
     }
@@ -234,12 +246,11 @@ exports.getWateringHistory = async (req, res, next) => {
 
 exports.getHealthHistory = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
     const { limit = 10, offset = 0 } = req.query
 
-    // Check if plant exists and belongs to user
-    const plant = await Plant.findOne({ where: { id, userId } })
+    // Check if plant exists
+    const plant = await Plant.findOne({ where: { id } })
     if (!plant) {
       return res.status(404).json({ message: "Plant not found" })
     }
@@ -264,12 +275,11 @@ exports.getHealthHistory = async (req, res, next) => {
 
 exports.getMoistureHistory = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
     const { days = 7, interval = "hour" } = req.query
 
-    // Check if plant exists and belongs to user
-    const plant = await Plant.findOne({ where: { id, userId } })
+    // Check if plant exists
+    const plant = await Plant.findOne({ where: { id } })
     if (!plant) {
       return res.status(404).json({ message: "Plant not found" })
     }
@@ -347,13 +357,13 @@ exports.getMoistureHistory = async (req, res, next) => {
   }
 }
 
-// controllers/plantTypeController.js
-
-
 exports.getAllPlantTypes = async (req, res, next) => {
   try {
     const plantTypes = await PlantType.findAll()
-    res.status(200).json({ plantTypes })
+    res.status(200).json({
+      message: "Plant types retrieved successfully",
+      plantTypes,
+    })
   } catch (error) {
     next(error)
   }

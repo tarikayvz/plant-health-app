@@ -2,7 +2,7 @@ const { Device, User, Plant } = require("../models")
 
 exports.getAllDevices = async (req, res, next) => {
   try {
-    // userId kontrolünü kaldırdık - tüm cihazları getir
+    // Tüm cihazları getir - authentication yok
     const devices = await Device.findAll({
       include: [
         {
@@ -11,7 +11,7 @@ exports.getAllDevices = async (req, res, next) => {
         },
         {
           model: User,
-          attributes: ["id", "name", "email"], // User bilgilerini de dahil et
+          attributes: ["id", "name", "email"],
         },
       ],
     })
@@ -29,8 +29,8 @@ exports.createDevice = async (req, res, next) => {
   try {
     const { name, deviceIdentifier, location, moistureThreshold, autoWatering, userId } = req.body
 
-    // userId'yi body'den al veya default değer ver
-    const deviceUserId = userId || 1 // Default olarak user ID 1 kullan
+    // Default user ID kullan
+    const deviceUserId = userId || 1
 
     // Check if device already exists
     const existingDevice = await Device.findOne({ where: { deviceIdentifier } })

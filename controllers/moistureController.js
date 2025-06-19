@@ -48,13 +48,13 @@ exports.getMoistureReadings = async (req, res, next) => {
     const { deviceId } = req.params
     const { days = 7 } = req.query
 
-    // Check if device belongs to user
+    // Authentication kontrolünü kaldırdık
     const device = await Device.findOne({
-      where: { id: deviceId, userId: req.user.id },
+      where: { id: deviceId },
     })
 
     if (!device) {
-      return res.status(404).json({ message: "Device not found or does not belong to user" })
+      return res.status(404).json({ message: "Device not found" })
     }
 
     // Calculate date range
@@ -76,6 +76,38 @@ exports.getMoistureReadings = async (req, res, next) => {
     res.status(200).json({
       message: "Moisture readings retrieved successfully",
       readings,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.getLatestMoisture = async (req, res, next) => {
+  try {
+    const { deviceId } = req.params
+
+    // Authentication kontrolünü kaldırdık
+    const device = await Device.findOne({
+      where: { id: deviceId },
+    })
+
+    if (!device) {
+      return res.status(404).json({ message: "Device not found" })
+    }
+
+    // Get latest moisture reading
+    const latestReading = await MoistureReading.findOne({
+      where: { deviceId },
+      order: [["timestamp", "DESC"]],
+    })
+
+    if (!latestReading) {
+      return res.status(404).json({ message: "No moisture readings found for this device" })
+    }
+
+    res.status(200).json({
+      message: "Latest moisture reading retrieved successfully",
+      reading: latestReading,
     })
   } catch (error) {
     next(error)

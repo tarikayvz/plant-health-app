@@ -1,15 +1,24 @@
 const express = require("express")
 const router = express.Router()
 const plantController = require("../controllers/plantController")
-// const { authenticate } = require("../middleware/auth")
 const { validatePlantCreate } = require("../middleware/validators")
 
-// router.use(authenticate)
+// Authentication middleware'lerini kaldırdık
+// const { authenticate } = require("../middleware/auth") // KALDIRILDI
+// router.use(authenticate) // KALDIRILDI
 
-router.get("/types", plantController.getAllPlantTypes)
+// Test endpoint
+router.get("/test", (req, res) => {
+  res.json({
+    message: "Plant route working without authentication",
+    timestamp: new Date().toISOString(),
+  })
+})
 
+// Plant endpoints - artık authentication yok
 router.get("/", plantController.getAllPlants)
-router.post("/create-Plant", validatePlantCreate, plantController.createPlant)
+router.post("/", validatePlantCreate, plantController.createPlant)
+router.get("/types", plantController.getAllPlantTypes)
 router.get("/:id", plantController.getPlantById)
 router.put("/:id", plantController.updatePlant)
 router.delete("/:id", plantController.deletePlant)

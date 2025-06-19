@@ -8,7 +8,7 @@ const cameraController = require("../controllers/cameraController")
 const notificationController = require("../controllers/notificationController") // Added import for notificationController
 
 // Device API endpoints for IoT devices
-router.post("/device/register", deviceController.registerDevice)
+// router.post("/device/register", deviceController.registerDevice)
 router.post("/device/moisture", deviceController.recordMoisture)
 router.post("/device/camera", cameraController.uploadImage)
 router.post("/device/water", deviceController.recordWatering)
