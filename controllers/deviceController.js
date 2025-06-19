@@ -2,14 +2,16 @@ const { Device, User, Plant } = require("../models")
 
 exports.getAllDevices = async (req, res, next) => {
   try {
-    const userId = req.user.id
-
+    // userId kontrolünü kaldırdık - tüm cihazları getir
     const devices = await Device.findAll({
-      where: { userId },
       include: [
         {
           model: Plant,
           attributes: ["id", "name", "currentHealth", "currentMoisture"],
+        },
+        {
+          model: User,
+          attributes: ["id", "name", "email"], // User bilgilerini de dahil et
         },
       ],
     })
@@ -25,8 +27,10 @@ exports.getAllDevices = async (req, res, next) => {
 
 exports.createDevice = async (req, res, next) => {
   try {
-    
-    const { name, deviceIdentifier, location, moistureThreshold, autoWatering } = req.body
+    const { name, deviceIdentifier, location, moistureThreshold, autoWatering, userId } = req.body
+
+    // userId'yi body'den al veya default değer ver
+    const deviceUserId = userId || 1 // Default olarak user ID 1 kullan
 
     // Check if device already exists
     const existingDevice = await Device.findOne({ where: { deviceIdentifier } })
@@ -36,7 +40,7 @@ exports.createDevice = async (req, res, next) => {
 
     // Create new device
     const device = await Device.create({
-      
+      userId: deviceUserId,
       name,
       deviceIdentifier,
       location,
@@ -45,9 +49,20 @@ exports.createDevice = async (req, res, next) => {
       lastConnected: new Date(),
     })
 
+    // Created device'ı user bilgisi ile birlikte döndür
+    const deviceWithUser = await Device.findOne({
+      where: { id: device.id },
+      include: [
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
+        },
+      ],
+    })
+
     res.status(201).json({
       message: "Device created successfully",
-      device,
+      device: deviceWithUser,
     })
   } catch (error) {
     next(error)
@@ -56,15 +71,18 @@ exports.createDevice = async (req, res, next) => {
 
 exports.getDeviceById = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
 
     const device = await Device.findOne({
-      where: { id, userId },
+      where: { id },
       include: [
         {
           model: Plant,
           attributes: ["id", "name", "currentHealth", "currentMoisture", "imageUrl"],
+        },
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
         },
       ],
     })
@@ -84,11 +102,10 @@ exports.getDeviceById = async (req, res, next) => {
 
 exports.updateDevice = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
     const { name, location, moistureThreshold, autoWatering } = req.body
 
-    const device = await Device.findOne({ where: { id, userId } })
+    const device = await Device.findOne({ where: { id } })
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" })
@@ -102,9 +119,20 @@ exports.updateDevice = async (req, res, next) => {
       autoWatering: autoWatering !== undefined ? autoWatering : device.autoWatering,
     })
 
+    // Updated device'ı user bilgisi ile birlikte döndür
+    const updatedDeviceWithUser = await Device.findOne({
+      where: { id: device.id },
+      include: [
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
+        },
+      ],
+    })
+
     res.status(200).json({
       message: "Device updated successfully",
-      device,
+      device: updatedDeviceWithUser,
     })
   } catch (error) {
     next(error)
@@ -113,10 +141,9 @@ exports.updateDevice = async (req, res, next) => {
 
 exports.deleteDevice = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
 
-    const device = await Device.findOne({ where: { id, userId } })
+    const device = await Device.findOne({ where: { id } })
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" })
@@ -135,10 +162,9 @@ exports.deleteDevice = async (req, res, next) => {
 
 exports.connectDevice = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
 
-    const device = await Device.findOne({ where: { id, userId } })
+    const device = await Device.findOne({ where: { id } })
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" })
@@ -150,9 +176,20 @@ exports.connectDevice = async (req, res, next) => {
       isActive: true,
     })
 
+    // Connected device'ı user bilgisi ile birlikte döndür
+    const connectedDeviceWithUser = await Device.findOne({
+      where: { id: device.id },
+      include: [
+        {
+          model: User,
+          attributes: ["id", "name", "email"],
+        },
+      ],
+    })
+
     res.status(200).json({
       message: "Device connected successfully",
-      device,
+      device: connectedDeviceWithUser,
     })
   } catch (error) {
     next(error)
@@ -161,10 +198,9 @@ exports.connectDevice = async (req, res, next) => {
 
 exports.toggleAutoWatering = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
 
-    const device = await Device.findOne({ where: { id, userId } })
+    const device = await Device.findOne({ where: { id } })
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" })
@@ -178,6 +214,7 @@ exports.toggleAutoWatering = async (req, res, next) => {
     res.status(200).json({
       message: `Auto watering ${device.autoWatering ? "enabled" : "disabled"} successfully`,
       autoWatering: device.autoWatering,
+      deviceId: device.id,
     })
   } catch (error) {
     next(error)
@@ -186,7 +223,6 @@ exports.toggleAutoWatering = async (req, res, next) => {
 
 exports.updateMoistureThreshold = async (req, res, next) => {
   try {
-    const userId = req.user.id
     const { id } = req.params
     const { threshold } = req.body
 
@@ -194,7 +230,7 @@ exports.updateMoistureThreshold = async (req, res, next) => {
       return res.status(400).json({ message: "Valid threshold value (0-100) is required" })
     }
 
-    const device = await Device.findOne({ where: { id, userId } })
+    const device = await Device.findOne({ where: { id } })
 
     if (!device) {
       return res.status(404).json({ message: "Device not found" })
@@ -208,6 +244,7 @@ exports.updateMoistureThreshold = async (req, res, next) => {
     res.status(200).json({
       message: "Moisture threshold updated successfully",
       moistureThreshold: device.moistureThreshold,
+      deviceId: device.id,
     })
   } catch (error) {
     next(error)
