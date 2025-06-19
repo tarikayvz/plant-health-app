@@ -1,0 +1,26 @@
+const express = require("express")
+const router = express.Router()
+
+const authRoutes = require("./auth")
+//const userRoutes = require("./user")
+const deviceRoutes = require("./device")
+const plantRoutes = require("./plant")
+//const plantTypeRoutes = require("./plantType")
+//const moistureRoutes = require("./moisture")
+//const cameraRoutes = require("./camera")
+//const notificationRoutes = require("./notification")
+//const healthRoutes = require("./health")
+//const wateringRoutes = require("./watering")
+
+router.use("/auth", authRoutes)
+//router.use("/users", userRoutes)
+router.use("/devices", deviceRoutes)
+router.use("/plants", plantRoutes)
+//router.use("/plant-types", plantTypeRoutes)
+//router.use("/moisture", moistureRoutes)
+//router.use("/camera", cameraRoutes)
+//router.use("/notifications", notificationRoutes)
+//router.use("/health", healthRoutes) 
+//router.use("/watering", wateringRoutes)
+
+module.exports = router

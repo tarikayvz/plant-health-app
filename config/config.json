@@ -1,0 +1,26 @@
+{
+  "development": {
+    "username": "postgres",
+    "password": "Tbfb.1907",
+    "database": "lant-health",
+    "host": "localhost",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "postgres",
+    "password": "Tbfb.1907",
+    "database": "lant-health",
+    "host": "localhost",
+    "dialect": "postgres"
+  },
+  "production": {
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  }
+}
