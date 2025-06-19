@@ -29,22 +29,39 @@ app.use("/api", routes);
 app.use(errorHandler);
 
 
-const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-});
-async function startServer() {
+
+
+
+async function testDatabaseConnection() {
   try {
+    console.log('🔄 Testing database connection...');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    
     await sequelize.authenticate();
-    console.log("Database connection has been established successfully.");
-
-   
-    scheduler.startScheduler();
+    console.log('✅ Database connection established successfully.');
+    return true;
   } catch (error) {
-    console.error("Unable to connect to the database:", error);
+    console.error('❌ Database connection failed:', error.message);
+    console.error('Full error:', error);
+    return false;
   }
+}
+
+// Server başlatmadan önce veritabanı bağlantısını test edin
+async function startServer() {
+  const dbConnected = await testDatabaseConnection();
+  
+  if (!dbConnected) {
+    console.error('❌ Cannot start server without database connection');
+    process.exit(1);
+  }
+  
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 }
 
 startServer();
