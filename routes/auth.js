@@ -3,6 +3,9 @@ const router = express.Router()
 const authController = require("../controllers/authController")
 const { validateRegister, validateLogin } = require("../middleware/validators")
 
+// Debug endpoint - GET request
+router.get("/debug", authController.debug)
+
 router.post("/register", validateRegister, authController.register)
 router.post("/login", validateLogin, authController.login)
 router.post("/refresh-token", authController.refreshToken)

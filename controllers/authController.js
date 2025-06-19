@@ -1,4 +1,4 @@
-const { User } = require("../models")
+const { User, sequelize } = require("../models")
 const jwt = require("jsonwebtoken")
 const { sendEmail } = require("../utils/email")
 const crypto = require("crypto")
@@ -8,59 +8,223 @@ const { Op } = require("sequelize")
 const JWT_SECRET = process.env.JWT_SECRET
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN
 
-exports.register = async (req, res, next) => {
+// Debug endpoint
+exports.debug = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body
+    console.log("=== DEBUG INFO ===")
+    console.log("NODE_ENV:", process.env.NODE_ENV)
+    console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL)
+    console.log("JWT_SECRET exists:", !!process.env.JWT_SECRET)
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } })
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already in use" })
+    // Model kontrolü
+    console.log("User model exists:", !!User)
+    console.log("User model name:", User?.name)
+    console.log("User table name:", User?.tableName)
+
+    // Available models
+    const models = require("../models")
+    console.log("Available models:", Object.keys(models))
+
+    // Raw SQL test - Available tables
+    try {
+      const [results] = await sequelize.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
+      )
+      console.log(
+        "Available tables:",
+        results.map((r) => r.table_name),
+      )
+    } catch (sqlError) {
+      console.log("SQL Error:", sqlError.message)
     }
 
-    // Create new user
-    const user = await User.create({
-      name,
-      email,
-      password,
-    })
-
-    // Generate JWT token
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-    })
-
-    // Remove password from response
-    const userWithoutPassword = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+    // User table test
+    try {
+      const userCount = await User.count()
+      console.log("User count:", userCount)
+    } catch (userError) {
+      console.log("User model error:", userError.message)
     }
 
-    res.status(201).json({
-      message: "User registered successfully",
-      token,
-      user: userWithoutPassword,
+    // Raw SQL User test
+    try {
+      const [rawUsers] = await sequelize.query('SELECT COUNT(*) as count FROM "Users"')
+      console.log("Raw SQL User count:", rawUsers[0].count)
+    } catch (rawError) {
+      console.log("Raw SQL Error:", rawError.message)
+    }
+
+    res.json({
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrlExists: !!process.env.DATABASE_URL,
+      jwtSecretExists: !!process.env.JWT_SECRET,
+      userModelExists: !!User,
+      userModelName: User?.name,
+      userTableName: User?.tableName,
+      availableModels: Object.keys(models),
+      timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    next(error)
+    console.error("Debug error:", error)
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    })
+  }
+}
+
+exports.register = async (req, res, next) => {
+  try {
+    console.log("=== REGISTER REQUEST START ===")
+    console.log("Request body:", req.body)
+    console.log("User model exists:", !!User)
+    console.log("NODE_ENV:", process.env.NODE_ENV)
+
+    const { name, email, password } = req.body
+
+    console.log("Checking if user exists with email:", email)
+
+    // Check if user already exists - Önce raw SQL ile test edelim
+    try {
+      const [existingUsersRaw] = await sequelize.query('SELECT * FROM "Users" WHERE email = $1', {
+        bind: [email],
+        type: sequelize.QueryTypes.SELECT,
+      })
+
+      console.log("Raw SQL existing users:", existingUsersRaw)
+
+      if (existingUsersRaw.length > 0) {
+        console.log("User already exists (raw SQL)")
+        return res.status(400).json({ message: "Email already in use" })
+      }
+    } catch (rawError) {
+      console.error("Raw SQL error:", rawError)
+      // Raw SQL başarısız olursa Sequelize ile dene
+
+      try {
+        const existingUser = await User.findOne({ where: { email } })
+        console.log("Sequelize existing user:", existingUser)
+
+        if (existingUser) {
+          console.log("User already exists (Sequelize)")
+          return res.status(400).json({ message: "Email already in use" })
+        }
+      } catch (sequelizeError) {
+        console.error("Sequelize findOne error:", sequelizeError)
+        throw sequelizeError
+      }
+    }
+
+    console.log("User does not exist, creating new user...")
+
+    // Create new user - Önce raw SQL ile dene
+    try {
+      const bcrypt = require("bcrypt")
+      const hashedPassword = await bcrypt.hash(password, 10)
+
+      const [newUserRaw] = await sequelize.query(
+        `INSERT INTO "Users" (name, email, password, "createdAt", "updatedAt") 
+         VALUES ($1, $2, $3, NOW(), NOW()) 
+         RETURNING id, name, email, "createdAt", "updatedAt"`,
+        {
+          bind: [name, email, hashedPassword],
+          type: sequelize.QueryTypes.INSERT,
+        },
+      )
+
+      console.log("User created successfully (raw SQL):", newUserRaw)
+
+      // Generate JWT token
+      const token = jwt.sign({ id: newUserRaw[0].id }, JWT_SECRET, {
+        expiresIn: JWT_EXPIRES_IN,
+      })
+
+      const userWithoutPassword = {
+        id: newUserRaw[0].id,
+        name: newUserRaw[0].name,
+        email: newUserRaw[0].email,
+        createdAt: newUserRaw[0].createdAt,
+        updatedAt: newUserRaw[0].updatedAt,
+      }
+
+      console.log("Registration successful (raw SQL)")
+
+      res.status(201).json({
+        message: "User registered successfully",
+        token,
+        user: userWithoutPassword,
+      })
+    } catch (rawCreateError) {
+      console.error("Raw SQL create error:", rawCreateError)
+
+      // Raw SQL başarısız olursa Sequelize ile dene
+      try {
+        console.log("Trying with Sequelize...")
+
+        const user = await User.create({
+          name,
+          email,
+          password,
+        })
+
+        console.log("User created successfully (Sequelize):", user.toJSON())
+
+        // Generate JWT token
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, {
+          expiresIn: JWT_EXPIRES_IN,
+        })
+
+        const userWithoutPassword = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        }
+
+        console.log("Registration successful (Sequelize)")
+
+        res.status(201).json({
+          message: "User registered successfully",
+          token,
+          user: userWithoutPassword,
+        })
+      } catch (sequelizeCreateError) {
+        console.error("Sequelize create error:", sequelizeCreateError)
+        throw sequelizeCreateError
+      }
+    }
+  } catch (error) {
+    console.error("Register error:", error)
+    console.error("Error stack:", error.stack)
+
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    })
   }
 }
 
 exports.login = async (req, res, next) => {
   try {
+    console.log("=== LOGIN REQUEST START ===")
+    console.log("Request body:", { email: req.body.email, passwordLength: req.body.password?.length })
+
     const { email, password } = req.body
 
     // Find user by email
     const user = await User.findOne({ where: { email } })
+    console.log("User found:", !!user)
+
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" })
     }
 
     // Validate password
     const isPasswordValid = await user.validatePassword(password)
+    console.log("Password valid:", isPasswordValid)
+
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" })
     }
@@ -79,12 +243,15 @@ exports.login = async (req, res, next) => {
       updatedAt: user.updatedAt,
     }
 
+    console.log("Login successful")
+
     res.status(200).json({
       message: "Login successful",
       token,
       user: userWithoutPassword,
     })
   } catch (error) {
+    console.error("Login error:", error)
     next(error)
   }
 }
